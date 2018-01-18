@@ -85,6 +85,17 @@ def work(config):
     
     closed_orders = [prev for (prev, cur) in changes if cur is None]
     if closed_orders:
+        # check status for disappeared open orders (could be deleted)
+        resp = requests.get('https://api.korbit.co.kr/v1/user/orders', headers={
+            'Authorization': 'Bearer {}'.format(credentials['access_token']),
+        }, params={
+            'id': [order['id'] for order in closed_orders],
+        })
+        resp.raise_for_status()
+        not_deleted_order_ids = set(order['id'] for order in resp.json())
+        closed_orders = [order for order in closed_orders if order['id'] in not_deleted_order_ids]
+
+    if closed_orders:
         push(config, {
             'type': 'note',
             'title': u'[Korbit] 체결됨',
